@@ -2,8 +2,13 @@
 # https://www.the-alien-project.com/wp-content/uploads/2019/04/15-04-2019-Rapport-danalyses-ADN-élargie-dAbraxas-GB.pdf
 # https://www.the-alien-project.com/wp-content/uploads/2018/11/2018-02-06-PALEO-DNA-MARIA-COMPARAISON-ADN.pdf
 
-# /r/genetics weighs in
-# https://www.reddit.com/r/genetics/comments/16hb5th/nhi_genome_studies_mexico_govt_sept_12/?share_id=6YtOiwRgY3t9t4Pu2asUK&utm_content=2&utm_medium=android_app&utm_name=androidcss&utm_source=share&utm_term=1
+# system notes
+# /u/VerbalCant and /u/Big_Tree_Fall_Hard are running this on os x apple silicon, /u/flynnston is on Linux.
+# OSX notes
+# - default gcc compiler is problematic on os x. better bet is to `brew install gcc` and put
+#   `/opt/homebrew/bin` in your path. or at the very least, use gcc@13 for these builds.
+#   in particular, kraken2 and samtools support multithreading, but default gcc won't
+#   build it. if you
 
 # sra_toolkit prefetch to locally cache the run results
 # makes working much faster. these are paired-end runs
@@ -49,18 +54,34 @@ wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/analysisSet/hg38.an
 ../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet -S SRR20755928_1.sam -x human_genome -1 SRR20755928_1_dedup.fastq -2 SRR20755928_2_dedup.fastq --ma 1 --mp 6,2 --np 1 --rdg 5,3 --rfg 5,3 --met-file SRR20755928_bowtie_alignment_metrics.txt --no-mixed --no-discordant
 
 #
-# Analysis steps to come
+# Analysis steps
+# This is /u/VerbalCant's version, analyzing ancient0002, SRR21031366,
 #
 
 # (sam to bam and sort)
 ## samtools view -Sb SRRxxx.sam > SRRxxx.bam
 ## samtools sort SRRxxx.bam -o SRRxxx_sorted.bam
-
+samtools view -@ 20 SRR21031366.sam >SRR21031366.bam
+##samtools sort -@ 20 SRR21031366.bam -o SRR21031366_sorted.bam
 # de novo assembly of unaligned reads.
 
+
 # get both read and mate unmapped and convert back to paired end fastq for assembly
-## samtools view -b -f 12 SRRxxx_sorted.bam > SRRxxx_unmapped_read_mate.bam # 4 is read unmapped, 8 is mate unmapped, so let's max our chances by 4 & 8
-## samtools bam2fq -1 SRRxxx_unmapped_R1.fastq -2 SRRxxx_unmapped_R2.fastq SRRxxx_unmapped_read_mate.bam
+# 4 is read unmapped, 8 is mate unmapped, so let's max our chances by 4 & 8
+#samtools view -@ 20 -b -f 12 SRR21031366_sorted.bam > SRR21031366_unmapped_read_mate.bam
+
+# index the bams for great justice
+##samtools index -@ 20 SRR21031366_sorted.bam
+##samtools index -@ 20 SRR21031366_unmapped_read_mate.bam
+
+# let's compare
+##samtools flagstat SRR21031366_sorted.bam > SRR21031366_sorted_flagstat.txt
+##samtools flagstat SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_flagstat.txt
+
+#samtools view -@ 20 -c SRR20458000_sorted.bam # 732469872
+#samtools view -@ 20 -c SRR20458000_unmapped_read_mate.bam  # 635844786
+
+../samtools/bin/samtools bam2fq -1 SRR20458000_unmapped_R1.fastq -2 SRR20458000_unmapped_R2.fastq SRR20458000_unmapped_read_mate.bam
 
 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5826002/#:~:text=De%20Bruijn%20graph–based%20genome,as%20the%20best%20genome%20assemblers.
 # https://astrobiomike.github.io/genomics/de_novo_assembly#assembly
@@ -82,7 +103,7 @@ wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/analysisSet/hg38.an
 # quality analysis of de novo contigs
 
 # taxmap with kraken2
-# kraken2 --db kraken_db --output SRRxxx_kraken_output.txt --report SRRxxx_kraken_report.txt SRRxxx_contigs.fasta
+# kraken2 --db kraken_db --output SRRxxx_kraken_output.txt --report SRRxxx_kraken_report.txt contigs.fasta
 
 # BLAST a random sample of the de novo contigs
 
