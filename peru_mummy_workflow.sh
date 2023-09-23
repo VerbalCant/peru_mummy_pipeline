@@ -1,19 +1,24 @@
 # Reports
-# https://www.the-alien-project.com/wp-content/uploads/2019/04/15-04-2019-Rapport-danalyses-ADN-élargie-dAbraxas-GB.pdf
+# This is the NGS report for "Victoria"
+#   https://www.the-alien-project.com/wp-content/uploads/2019/04/15-04-2019-Rapport-danalyses-ADN-élargie-dAbraxas-GB.pdf
+# Here's the report for all three samples on SRA:
+#   https://www.the-alien-project.com/wp-content/uploads/2018/12/ABRAXAS-EN.pdf
+# This is the extraction/amplification of "Maria", who is not "Victoria"
 # https://www.the-alien-project.com/wp-content/uploads/2018/11/2018-02-06-PALEO-DNA-MARIA-COMPARAISON-ADN.pdf
-
+#
 # system notes
 # /u/VerbalCant and /u/Big_Tree_Fall_Hard are running this on os x apple silicon, /u/flynnston is on Linux.
+
 # OSX notes
 # - default gcc compiler is problematic on os x. better bet is to `brew install gcc` and put
 #   `/opt/homebrew/bin` in your path. or at the very least, use gcc@13 for these builds.
-#   in particular, kraken2 and samtools support multithreading, but default gcc won't
-#   build it. if you
+#   in particular, kraken2 and samtools support multithreading, but default gcc (at least on apple silicon
+#   and Ventura?) won't build with it.
 
 # sra_toolkit prefetch to locally cache the run results
 # makes working much faster. these are paired-end runs
-bin/prefetch     SRR20458000 --max-size UNLIMITED # ancient0004
-bin/prefetch     SRR21031366 --max-size UNLIMITED #ancient0002
+bin/prefetch     SRR20458000 --max-size UNLIMITED # ancient0004,  Victoria,  Sample label: Momia 5 -DNA
+bin/prefetch     SRR21031366 --max-size UNLIMITED #ancient0002, Victoria, Sample label: Neck Bone Med Seated 00-12 Victoria 4
 bin/prefetch     SRR20755928 --max-size UNLIMITED #ancient0003
 
 # fasterq-dump parses the reads into fastq files, used for
@@ -48,40 +53,42 @@ wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/analysisSet/hg38.an
 ../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet  -S SRR20755928.sam -x human_genome -1 SRR20755928_1_dedup.fastq -2 SRR20755928_2_dedup.fastq human_genome
 
 # less permissive bowtie
-# these are still running
-../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet -S SRR20458000_1.sam -x human_genome -1 SRR20458000_1_dedup.fastq -2 SRR20458000_2_dedup.fastq --ma 1 --mp 6,2 --np 1 --rdg 5,3 --rfg 5,3 --met-file SRR20458000_bowtie_alignment_metrics.txt --no-mixed --no-discordant
-../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet -S SRR21031366_1.sam -x human_genome -1 SRR21031366_1_dedup.fastq -2 SRR21031366_2_dedup.fastq --ma 1 --mp 6,2 --np 1 --rdg 5,3 --rfg 5,3 --met-file SRR21031366_bowtie_alignment_metrics.txt --no-mixed --no-discordant
-../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet -S SRR20755928_1.sam -x human_genome -1 SRR20755928_1_dedup.fastq -2 SRR20755928_2_dedup.fastq --ma 1 --mp 6,2 --np 1 --rdg 5,3 --rfg 5,3 --met-file SRR20755928_bowtie_alignment_metrics.txt --no-mixed --no-discordant
+#../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet -S SRR21031366_1.sam -x human_genome -1 SRR21031366_1_dedup.fastq -2 SRR21031366_2_dedup.fastq --ma 1 --mp 6,2 --np 1 --rdg 5,3 --rfg 5,3 --met-file SRR21031366_bowtie_alignment_metrics.txt --no-mixed --no-discordant
 
 #
 # Analysis steps
-# This is /u/VerbalCant's version, analyzing ancient0002, SRR21031366,
+# This is /u/VerbalCant's version, analyzing ancient0002, SRR21031366, "Victoria"
 #
 
 # (sam to bam and sort)
-## samtools view -Sb SRRxxx.sam > SRRxxx.bam
-## samtools sort SRRxxx.bam -o SRRxxx_sorted.bam
-samtools view -@ 20 SRR21031366.sam >SRR21031366.bam
-##samtools sort -@ 20 SRR21031366.bam -o SRR21031366_sorted.bam
-# de novo assembly of unaligned reads.
+samtools view -@ 20 -Sb  SRR21031366.sam >SRR21031366.bam
+
+samtools sort -@ 20 SRR21031366.bam -o SRR21031366_sorted.bam
+samtools view -@ 20 -b -f 12 SRR21031366_sorted.bam > SRR21031366_unmapped_read_mate.bam
+samtools index -@ 20 SRR21031366_sorted.bam
+samtools index -@ 20 SRR21031366_unmapped_read_mate.bam
+samtools flagstat SRR21031366_sorted.bam > SRR21031366_sorted_flagstat.txt
+samtools flagstat SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_flagstat.txt
+samtools idxstats SRR21031366_sorted.bam > SRR21031366_sorted_idxstats.txt
+samtools idxstats SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_idxstats.txt
+samtools view -@ 20 -c SRR21031366_sorted.bam >SRR21031366_sorted_count.txt
+samtools view -@ 20 -c SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_count.txt
+samtools depth -@ 20 SRR21031366_sorted.bam >SRR21031366_sorted_depth.txt
+samtools depth -@ 20 SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_depth.txt
+samtools bam2fq -@ 20 -1 SRR21031366_unmapped_R1.fastq -2 SRR21031366_unmapped_R2.fastq SRR21031366_unmapped_read_mate.bam
+
+# Next step is to run kraken2 for a tax map
+#   Build the database first
+kraken2-build --build --standard --db kraken_standard -threads 10
+kraken2-build --db kraken_standard --download-taxonomy --threads 10
+kraken2-build --build --db kraken_standard -threads 10
 
 
-# get both read and mate unmapped and convert back to paired end fastq for assembly
-# 4 is read unmapped, 8 is mate unmapped, so let's max our chances by 4 & 8
-#samtools view -@ 20 -b -f 12 SRR21031366_sorted.bam > SRR21031366_unmapped_read_mate.bam
+# NOTE: /u/VerbalCant to build new nt database after processing, since she has a 16TB drive
+## kraken2-build --download-library nt && kraken2-build --build etc etc
 
-# index the bams for great justice
-##samtools index -@ 20 SRR21031366_sorted.bam
-##samtools index -@ 20 SRR21031366_unmapped_read_mate.bam
-
-# let's compare
-##samtools flagstat SRR21031366_sorted.bam > SRR21031366_sorted_flagstat.txt
-##samtools flagstat SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_flagstat.txt
-
-#samtools view -@ 20 -c SRR20458000_sorted.bam # 732469872
-#samtools view -@ 20 -c SRR20458000_unmapped_read_mate.bam  # 635844786
-
-../samtools/bin/samtools bam2fq -1 SRR20458000_unmapped_R1.fastq -2 SRR20458000_unmapped_R2.fastq SRR20458000_unmapped_read_mate.bam
+# Next step will be de novo assembly of unaligned reads. Looking like megahit. Found this post below
+# about usign SPAdes for error correction even if you use megahit. gonna try with megahit first.
 
 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5826002/#:~:text=De%20Bruijn%20graph–based%20genome,as%20the%20best%20genome%20assemblers.
 # https://astrobiomike.github.io/genomics/de_novo_assembly#assembly
@@ -101,9 +108,6 @@ samtools view -@ 20 SRR21031366.sam >SRR21031366.bam
 # de novo assembly of all reads
 
 # quality analysis of de novo contigs
-
-# taxmap with kraken2
-# kraken2 --db kraken_db --output SRRxxx_kraken_output.txt --report SRRxxx_kraken_report.txt contigs.fasta
 
 # BLAST a random sample of the de novo contigs
 
