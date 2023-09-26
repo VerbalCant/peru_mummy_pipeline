@@ -79,17 +79,26 @@ samtools bam2fq -@ 20 -1 SRR21031366_unmapped_R1.fastq -2 SRR21031366_unmapped_R
 
 # Next step is to run kraken2 for a tax map
 #   Build the database first
-kraken2-build --build --standard --db kraken_standard -threads 10
-kraken2-build --db kraken_standard --download-taxonomy --threads 10
-kraken2-build --build --db kraken_standard -threads 10
+# kraken2-build --build --standard --db kraken_standard --threads 10
+# kraken2-build --db kraken_standard --download-taxonomy --threads 10
+# kraken2-build --build --db kraken_standard --threads 10 # ugh i just downloaded it
+
+kraken2 --db k2_standard_20230605  --paired SRR21031366_unmapped_R1.fq.gz SRR21031366_unmapped_R2.fq.gz --use-names  --threads 8 --memory-mapping --gzip-compressed --output SRR21031366_kraken2_report.tab --unclassified-out SR21031366_kraken2_unclassified_R#.fastq --classified-out SRR21031366_kraken2_classified_R#.fastq
+
+# First megahit for de novo assembly on hg38-unaligned reads
+
+megahit -1 SRR21031366_unmapped_R1.fq.gz -2 SRR21031366_unmapped_R2.fq.gz --presets meta-large -o SRR21031366_megahit
+
+# will also report on the kraken2 tax classifications.
+#
+# NOTE: see below about running through spades for error correction. gonna try without it
+# first.
+# use assembled contigs for BLAST and further classification
 
 
-# NOTE: /u/VerbalCant to build new nt database after processing, since she has a 16TB drive
-## kraken2-build --download-library nt && kraken2-build --build etc etc
-
-# Next step will be de novo assembly of unaligned reads. Looking like megahit. Found this post below
-# about usign SPAdes for error correction even if you use megahit. gonna try with megahit first.
-
+###########################
+# NOTES
+###########################
 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5826002/#:~:text=De%20Bruijn%20graph–based%20genome,as%20the%20best%20genome%20assemblers.
 # https://astrobiomike.github.io/genomics/de_novo_assembly#assembly
 # Try both spades and megahit??
@@ -105,7 +114,6 @@ kraken2-build --build --db kraken_standard -threads 10
 # from it so we can then use them elsewhere. If we don’t want to do the assembly with SPAdes, but run the error-correction step, we
 # can set the --only-error-correction flag like we do first here."
 
-# de novo assembly of all reads
 
 # quality analysis of de novo contigs
 
