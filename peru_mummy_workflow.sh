@@ -89,12 +89,14 @@ kraken2 --db k2_standard_20230605  --paired SRR21031366_unmapped_R1.fq.gz SRR210
 
 megahit -1 SRR21031366_unmapped_R1.fq.gz -2 SRR21031366_unmapped_R2.fq.gz --presets meta-large -o SRR21031366_megahit
 
+# Now running kraken2 on the megahit contigs!
+# blasting contigs tonight too
+
 # will also report on the kraken2 tax classifications.
 #
 # NOTE: see below about running through spades for error correction. gonna try without it
 # first.
 # use assembled contigs for BLAST and further classification
-
 
 ###########################
 # NOTES
