@@ -10,10 +10,23 @@
 # /u/VerbalCant and /u/Big_Tree_Fall_Hard are running this on os x apple silicon, /u/flynnston is on Linux.
 
 # OSX notes
-# - default gcc compiler is problematic on os x. better bet is to `brew install gcc` and put
-#   `/opt/homebrew/bin` in your path. or at the very least, use gcc@13 for these builds.
-#   in particular, kraken2 and samtools support multithreading, but default gcc (at least on apple silicon
-#   and Ventura?) won't build with it.
+# - Use conda. If you're on Apple Silicon, you'll want Rosetta. There's a lot of stuff
+# in bioconda that isn't built for ARM.
+
+
+#############
+# Adapter notes
+# SRR21031366 AdapterRemoval notes:
+#   --adapter1:  AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG
+#   --adapter2:  AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
+# SRR20458000 AdapterRemoval notes
+#   --adapter1:  AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG
+#   --adapter2:  AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
+# SRR20755928 AdapterRemoval notes:
+#   --adapter1:  AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG
+#   --adapter2:  AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
+# TruSeq™ single index (previously LT) and TruSeq CD index (previously HT)-based kits
+# trimmomatic TruSeq3-PE-2.fa
 
 # sra_toolkit prefetch to locally cache the run results
 # makes working much faster. these are paired-end runs
@@ -107,15 +120,16 @@ seqkit sample -p 0.001 SRR21031366.megahit_contigs.fa > SRR21031366_0.1pct_megah
 blastn -query SRR21031366_0.1pct_megahit_sampled_contigs.fa -db /Volumes/Nauvoo/blast/nt -outfmt "6 std staxids" -out SRR21031366_contigs_random_blastn.tsv
 
 
+
 # kraken2 the raw reads against nt
 kraken2 --db k2_nt --memory-mapping --paired SRR20458000fixed_non_human_R1.fastq SRR20458000fixed_non_human_R2.fastq --output SRR20458000_kraken2_output.txt --report SRR20458000_kraken2_report.txt
 kraken2 --db k2_nt --memory-mapping --paired SRR21031366_1.fastq.gz SRR21031366_2.fastq.gz --output SRR21031366_kraken2_output.txt --report SRR21031366_kraken2_report.txt --gzip-compressed
 
 # ancient003
-clumpify.sh -Xmx24g  in1=SRR20755928_1.fastq.gz in2=SRR20755928_2.fastq.gz out1=SRR20755928_1_dedup.fastq out2=SRR20755928_2_dedup.fastq dedupe threads=128
 trimmomatic PE -phred33 -threads 128  SRR20755928_1_dedup.fastq.gz SRR20755928_2_dedup.fastq.gz   SRR20755928_1_paired.fastq.gz SRR20755928_1_unpaired.fastq.gz   SRR20755928_2_paired.fastq.gz SRR20755928_2_unpaired.fastq.gz   ILLUMINACLIP:TruSeq3-PE.fa:2:30:10   LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+clumpify.sh -Xmx24g  in1=SRR20755928_1.fastq.gz in2=SRR20755928_2.fastq.gz out1=SRR20755928_1_dedup.fastq.gz out2=SRR20755928_2_dedup.fastq.gz dedupe threads=128
 kraken2 --db /home/ubuntu/data/k2_nt  --paired SRR20755928_1.fastq.gz SRR20755928_2.fastq.gz  --use-names --threads 128 --output SRR20755928_kraken2_raw_reads_output.tab --report SRR20755928_kraken2_raw_reads_report.tab
-bowtie2 -p 128 --local --quiet -S SRR20755928.sam -x human_genome -1 SRR20755928_1_paired.fastq.gz -2 SRR20755928_2_paired.fastq.gz human_genome \
+bowtie2 -p 128 --local --quiet -S SRR20755928_cleaned_deduped_aligned_hg38.sam -x human_genome -1 SRR20755928_1_paired.fastq.gz -2 SRR20755928_2_paired.fastq.gz human_genome \
   | samtools view -@ 128 -bS - \
   | samtools sort  -@ 128 -o SRR20755928_sorted.bam
 samtools view -@ 20 -b -f 12 SRR20755928_sorted.bam > SRR20755928_unmapped_read_mate.bam
@@ -145,3 +159,7 @@ samtools depth -@ 20 SRR20755928_unmapped_read_mate.bam >SRR20755928_unmapped_re
 ##
 ## paper
 ##
+
+
+
+
