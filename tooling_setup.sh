@@ -1,5 +1,7 @@
 # This is how I provision a server to run whatever tool I
 # have. I use aws ec2.
+# I was having a problem with the most recent Anaconda so I just
+# use this one.
 curl -O https://repo.anaconda.com/archive/Anaconda3-2023.07-2-Linux-x86_64.sh
 bash Anaconda3-2023.07-2-Linux-x86_64.sh 
 conda update -y -n base -c defaults conda

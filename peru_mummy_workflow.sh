@@ -15,7 +15,10 @@
 
 
 #############
-# Adapter notes
+# I got this by running AdapterRemoval --identify-adapters on the first million lines of each
+# file, which i got with `gunzip -c filename.gz | head -n 100000 >filename_head.fastq`, e.g.:
+#      AdapterRemoval --identify-adapters --file1 SRR21031366_1_head.fastq --file2 SRR21031366_2_head.fastq
+# Adapter notes:
 # SRR21031366 AdapterRemoval notes:
 #   --adapter1:  AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG
 #   --adapter2:  AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
@@ -26,7 +29,7 @@
 #   --adapter1:  AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG
 #   --adapter2:  AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
 # TruSeq™ single index (previously LT) and TruSeq CD index (previously HT)-based kits
-# trimmomatic TruSeq3-PE-2.fa
+# Matching adapter FASTA: trimmomatic TruSeq3-PE-2.fa
 
 # sra_toolkit prefetch to locally cache the run results
 # makes working much faster. these are paired-end runs
