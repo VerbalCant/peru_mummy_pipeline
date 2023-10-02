@@ -25,7 +25,7 @@ bin/prefetch     SRR20755928 --max-size UNLIMITED #ancient0003
 # analysis
 bin/fasterq-dump SRR20458000 --threads 8
 bin/fasterq-dump SRR21031366 --threads 8
-bin/fasterq-dump SRR20755928 --threads 8
+bin/fasterq-dump SRR20755928 --threads 128
 
 # Now we use fastqc to check the quality of the data.
 # https://www.bioinformatics.babraham.ac.uk/projects/fastqc/
@@ -37,28 +37,19 @@ FastQC
 
 # in any case we have to dedup before moving on to the next stage
 
-../bbmap/clumpify.sh -Xmx24g  in1=SRR20458000_1.fastq in2=SRR20458000_2.fastq out1=SRR20458000_1_dedup.fastq out2=SRR20458000_2_dedup.fastq dedupe
-../bbmap/clumpify.sh -Xmx24g  in1=SRR21031366_1.fastq in2=SRR21031366_2.fastq out1=SRR21031366_1_dedup.fastq out2=SRR21031366_2_dedup.fastq dedupe
-../bbmap/clumpify.sh -Xmx24g  in1=SRR20755928_1.fastq in2=SRR20755928_2.fastq out1=SRR20755928_1_dedup.fastq out2=SRR20755928_2_dedup.fastq dedupe
+clumpify.sh -Xmx24g  in1=SRR20458000_1.fastq in2=SRR20458000_2.fastq out1=SRR20458000_1_dedup.fastq out2=SRR20458000_2_dedup.fastq dedupe
+clumpify.sh -Xmx24g  in1=SRR21031366_1.fastq in2=SRR21031366_2.fastq out1=SRR21031366_1_dedup.fastq out2=SRR21031366_2_dedup.fastq dedupe
+clumpify.sh -Xmx24g  in1=SRR20755928_1.fastq in2=SRR20755928_2.fastq out1=SRR20755928_1_dedup.fastq out2=SRR20755928_2_dedup.fastq dedupe
 
 # now i need to get the reference genome to align to
 wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/analysisSet/hg38.analysisSet.fa.gz && gunzip hg38.analysisSet.fa.gz
 
 # ...and index it for bowtie2
-../bowtie2-2.5.1-macos-arm64/bowtie2-build hg38.analysisSet.fasta human_genome
+bowtie2-build hg38.analysisSet.fasta human_genome
 
 # align to hg38 w/bowtie2
-../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet  -S SRR20458000.sam -x human_genome -1 SRR20458000_1_dedup.fastq -2 SRR20458000_2_dedup.fastq human_genome
-../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet  -S SRR21031366.sam -x human_genome -1 SRR21031366_1_dedup.fastq -2 SRR21031366_2_dedup.fastq human_genome
-../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet  -S SRR20755928.sam -x human_genome -1 SRR20755928_1_dedup.fastq -2 SRR20755928_2_dedup.fastq human_genome
-
-# less permissive bowtie
-#../bowtie2-2.5.1-macos-arm64/bowtie2 -p 7 --local --quiet -S SRR21031366_1.sam -x human_genome -1 SRR21031366_1_dedup.fastq -2 SRR21031366_2_dedup.fastq --ma 1 --mp 6,2 --np 1 --rdg 5,3 --rfg 5,3 --met-file SRR21031366_bowtie_alignment_metrics.txt --no-mixed --no-discordant
-
-#
-# Analysis steps
-# This is /u/VerbalCant's version, analyzing ancient0002, SRR21031366, "Victoria"
-#
+bowtie2 -p 7 --local --quiet  -S SRR20458000.sam -x human_genome -1 SRR20458000_1_dedup.fastq -2 SRR20458000_2_dedup.fastq human_genome
+bowtie2 -p 7 --local --quiet  -S SRR21031366.sam -x human_genome -1 SRR21031366_1_dedup.fastq -2 SRR21031366_2_dedup.fastq human_genome
 
 # (sam to bam and sort)
 samtools view -@ 20 -Sb  SRR21031366.sam >SRR21031366.bam
@@ -77,50 +68,80 @@ samtools depth -@ 20 SRR21031366_sorted.bam >SRR21031366_sorted_depth.txt
 samtools depth -@ 20 SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_depth.txt
 samtools bam2fq -@ 20 -1 SRR21031366_unmapped_R1.fastq -2 SRR21031366_unmapped_R2.fastq SRR21031366_unmapped_read_mate.bam
 
+#
+# Analysis steps
+# This is /u/VerbalCant's version, analyzing ancient0002, SRR21031366, "Victoria"
+#
+
 # Next step is to run kraken2 for a tax map
 #   Build the database first
 # kraken2-build --build --standard --db kraken_standard --threads 10
 # kraken2-build --db kraken_standard --download-taxonomy --threads 10
 # kraken2-build --build --db kraken_standard --threads 10 # ugh i just downloaded it
 
-kraken2 --db k2_standard_20230605  --paired SRR21031366_unmapped_R1.fq.gz SRR21031366_unmapped_R2.fq.gz --use-names  --threads 8 --memory-mapping --gzip-compressed --output SRR21031366_kraken2_report.tab --unclassified-out SR21031366_kraken2_unclassified_R#.fastq --classified-out SRR21031366_kraken2_classified_R#.fastq
+kraken2 --db k2_standard_20230605  --paired SRR21031366_unmapped_R1.fq.gz SRR21031366_unmapped_R2.fq.gz --use-names  --threads 8 --memory-mapping --gzip-compressed --output SRR21031366_kraken2_output.tab --report SRR21031366_kraken2_report.tab
 
 # First megahit for de novo assembly on hg38-unaligned reads
 
 megahit -1 SRR21031366_unmapped_R1.fq.gz -2 SRR21031366_unmapped_R2.fq.gz --presets meta-large -o SRR21031366_megahit
 
-# Now running kraken2 on the megahit contigs!
-# blasting contigs tonight too
+# then get the final.contigs.fa out of the megahit output directory and start working with that
+seqkit stats SRR21031366.megahit_contigs.fa > SRR21031366.megahit_contigs.fa.stats.txt
+# file                            format  type  num_seqs      sum_len  min_len  avg_len  max_len
+# SRR21031366.megahit_contigs.fa  FASTA   DNA    997,918  614,055,333      200    615.3  279,692
 
-# will also report on the kraken2 tax classifications.
-#
-# NOTE: see below about running through spades for error correction. gonna try without it
-# first.
-# use assembled contigs for BLAST and further classification
+jellyfish count -m 31 -s 100M -t 10 -C -o SRR21031366_megahit_contigs_jellyfish.jf SRR21031366.megahit_contigs.fa
+jellyfish histo SRR21031366_megahit_contigs_jellyfish.jf >SRR21031366_megahit_contigs_jellyfish_histogram.txt
+# Plot overall histogram - wow, really not a lot of good stuff here
+# NOTE: this is from the `bin/` directory of this repo
+plot_jellyfish_histo.py SRR21031366_megahit_contigs_jellyfish_histogram.txt -o SRR21031366_megahit_contigs_jellyfish_histogram.png
 
-###########################
-# NOTES
-###########################
-# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5826002/#:~:text=De%20Bruijn%20graph–based%20genome,as%20the%20best%20genome%20assemblers.
-# https://astrobiomike.github.io/genomics/de_novo_assembly#assembly
-# Try both spades and megahit??
-# >> Relevant quotes
-# "I've had really good results with SPAdes for isolate or enrichment cultures when I’m trying to reconstruct just one or a few genomes.
-# But when working with high diversity metagenomic samples, sometimes SPAdes can’t handle it and MEGAHIT is pretty awesome with how
-# well it does with such a small memory footprint – and it’s insanely fast."
-# ...
-# "I will note that I’ve consistently found that incorporating an error-correction step tends improve assembly results, and the one
-# I happen to use is available through the SPAdes program. So even when I end up using the assembly from another program, I typically
-# run error-correction on the reads with SPAdes first, and then put the output of that into whatever other assembler I’m using. A
-# default SPAdes run with the current version (noted at the top of this page) will run the error-correction step and save the reads
-# from it so we can then use them elsewhere. If we don’t want to do the assembly with SPAdes, but run the error-correction step, we
-# can set the --only-error-correction flag like we do first here."
+seqtk comp SRR21031366.megahit_contigs.fa | awk '{sum+=$2; count++} END {print sum/count}'
+# This gives an N50 of 615.336
+
+seqkit seq -m 1000 -i SRR21031366.megahit_contigs.fa -o S21031366.megahit_contigs_gt1000.fasta -g
+
+# get a random sample for blastn
+seqkit sample -p 0.001 SRR21031366.megahit_contigs.fa > SRR21031366_0.1pct_megahit_sampled_contigs.fa
+
+blastn -query SRR21031366_0.1pct_megahit_sampled_contigs.fa -db /Volumes/Nauvoo/blast/nt -outfmt "6 std staxids" -out SRR21031366_contigs_random_blastn.tsv
 
 
-# quality analysis of de novo contigs
+# kraken2 the raw reads against nt
+kraken2 --db k2_nt --memory-mapping --paired SRR20458000fixed_non_human_R1.fastq SRR20458000fixed_non_human_R2.fastq --output SRR20458000_kraken2_output.txt --report SRR20458000_kraken2_report.txt
+kraken2 --db k2_nt --memory-mapping --paired SRR21031366_1.fastq.gz SRR21031366_2.fastq.gz --output SRR21031366_kraken2_output.txt --report SRR21031366_kraken2_report.txt --gzip-compressed
 
-# BLAST a random sample of the de novo contigs
+# ancient003
+clumpify.sh -Xmx24g  in1=SRR20755928_1.fastq.gz in2=SRR20755928_2.fastq.gz out1=SRR20755928_1_dedup.fastq out2=SRR20755928_2_dedup.fastq dedupe threads=128
+trimmomatic PE -phred33 -threads 128  SRR20755928_1_dedup.fastq.gz SRR20755928_2_dedup.fastq.gz   SRR20755928_1_paired.fastq.gz SRR20755928_1_unpaired.fastq.gz   SRR20755928_2_paired.fastq.gz SRR20755928_2_unpaired.fastq.gz   ILLUMINACLIP:TruSeq3-PE.fa:2:30:10   LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+kraken2 --db /home/ubuntu/data/k2_nt  --paired SRR20755928_1.fastq.gz SRR20755928_2.fastq.gz  --use-names --threads 128 --output SRR20755928_kraken2_raw_reads_output.tab --report SRR20755928_kraken2_raw_reads_report.tab
+bowtie2 -p 128 --local --quiet -S SRR20755928.sam -x human_genome -1 SRR20755928_1_paired.fastq.gz -2 SRR20755928_2_paired.fastq.gz human_genome \
+  | samtools view -@ 128 -bS - \
+  | samtools sort  -@ 128 -o SRR20755928_sorted.bam
+samtools view -@ 20 -b -f 12 SRR20755928_sorted.bam > SRR20755928_unmapped_read_mate.bam
+samtools index -@ 20 SRR20755928_sorted.bam
+samtools index -@ 20 SRR20755928_unmapped_read_mate.bam
+samtools flagstat SRR20755928_sorted.bam > SRR20755928_sorted_flagstat.txt
+samtools flagstat SRR20755928_unmapped_read_mate.bam >SRR20755928_unmapped_read_mate_flagstat.txt
+samtools idxstats SRR20755928_sorted.bam > SRR20755928_sorted_idxstats.txt
+samtools idxstats SRR20755928_unmapped_read_mate.bam >SRR20755928_unmapped_read_mate_idxstats.txt
+samtools view -@ 20 -c SRR20755928_sorted.bam >SRR20755928_sorted_count.txt
+samtools view -@ 20 -c SRR20755928_unmapped_read_mate.bam >SRR20755928_unmapped_read_mate_count.txt
+samtools depth -@ 20 SRR20755928_sorted.bam >SRR20755928_sorted_depth.txt
+samtools depth -@ 20 SRR20755928_unmapped_read_mate.bam >SRR20755928_unmapped_read_mate_depth.txt
 
-# annotate de novo genome and hg38 alignment
+## megahit alignment
+## shovil alignment
+## binning
+## blastn contig samples
+## CDS
+## MEME for motif finding
+## QUAST
 
-# what next?
+##
+## comparative analysis
+##
+
+##
+## paper
+##
