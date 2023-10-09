@@ -12,7 +12,7 @@ conda config --set channel_priority strict
 sudo apt update
 sudo apt install -y awscli # used for connecting to S3 or IDK whatever you want do do on the command line
 
-sudo apt install pigz # multithreaded gzipper.
+sudo apt install -y pigz # multithreaded gzipper.
 
 # Now run this command to configure AWS.
 aws configure

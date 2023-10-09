@@ -39,8 +39,8 @@ bin/prefetch     SRR20755928 --max-size UNLIMITED #ancient0003
 
 # fasterq-dump parses the reads into fastq files, used for
 # analysis
-bin/fasterq-dump SRR20458000 --threads 8
-bin/fasterq-dump SRR21031366 --threads 8
+bin/fasterq-dump SRR20458000 --threads 128
+bin/fasterq-dump SRR21031366 --threads 128
 bin/fasterq-dump SRR20755928 --threads 128
 
 # Now we use fastqc to check the quality of the data.
@@ -53,10 +53,13 @@ FastQC
 
 # in any case we have to dedup before moving on to the next stage
 
-clumpify.sh -Xmx24g  in1=SRR20458000_1.fastq in2=SRR20458000_2.fastq out1=SRR20458000_1_dedup.fastq out2=SRR20458000_2_dedup.fastq dedupe
-clumpify.sh -Xmx24g  in1=SRR21031366_1.fastq in2=SRR21031366_2.fastq out1=SRR21031366_1_dedup.fastq out2=SRR21031366_2_dedup.fastq dedupe
-clumpify.sh -Xmx24g  in1=SRR20755928_1.fastq in2=SRR20755928_2.fastq out1=SRR20755928_1_dedup.fastq out2=SRR20755928_2_dedup.fastq dedupe
+clumpify.sh in1=SRR20458000_1.fastq in2=SRR20458000_2.fastq out1=SRR20458000_1_dedup.fastq out2=SRR20458000_2_dedup.fastq dedupe
+clumpify.sh in1=SRR21031366_1.fastq in2=SRR21031366_2.fastq out1=SRR21031366_1_dedup.fastq out2=SRR21031366_2_dedup.fastq dedupe
+clumpify.sh in1=SRR20755928_1.fastq in2=SRR20755928_2.fastq out1=SRR20755928_1_dedup.fastq out2=SRR20755928_2_dedup.fastq dedupe
 
+clumpify.sh in1=SRR20755928_1.fastq.gz in2=SRR20755928_2.fastq.gz out1=SRR20755928_1_dedup.fastq.gz out2=SRR20755928_2_dedup.fastq.gz dedupe
+time trimmomatic PE -phred33 -threads 128 SRR20755928_1_dedup.fastq.gz SRR20755928_2_dedup.fastq.gz SRR20755928_R1_dedup_trimmed_paired.fastq.gz SRR20755928_R1_dedup_trimmed_unpaired.fastq.gz  SRR20755928_R2_dedup_trimmed_paired.fastq.gz SRR20755928_R2_dedup_trimmed_unpaired_trimmed.fastq.gz ILLUMINACLIP:TruSeq3-PE-2.fa:2:30:10   LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+time trimmomatic PE -phred33 -threads 128 SRR21031366_1_dedup.fastq.gz SRR21031366_2_dedup.fastq.gz SRR21031366_R1_dedup_trimmed_paired.fastq.gz SRR21031366_R1_dedup_trimmed_unpaired.fastq.gz  SRR21031366_R2_dedup_trimmed_paired.fastq.gz SRR21031366_R2_dedup_trimmed_unpaired_trimmed.fastq.gz ILLUMINACLIP:TruSeq3-PE-2.fa:2:30:10   LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
 # now i need to get the reference genome to align to
 wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/analysisSet/hg38.analysisSet.fa.gz && gunzip hg38.analysisSet.fa.gz
 
@@ -69,7 +72,6 @@ bowtie2 -p 7 --local --quiet  -S SRR21031366.sam -x human_genome -1 SRR21031366_
 
 # (sam to bam and sort)
 samtools view -@ 20 -Sb  SRR21031366.sam >SRR21031366.bam
-
 samtools sort -@ 20 SRR21031366.bam -o SRR21031366_sorted.bam
 samtools view -@ 20 -b -f 12 SRR21031366_sorted.bam > SRR21031366_unmapped_read_mate.bam
 samtools index -@ 20 SRR21031366_sorted.bam
@@ -84,12 +86,28 @@ samtools depth -@ 20 SRR21031366_sorted.bam >SRR21031366_sorted_depth.txt
 samtools depth -@ 20 SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_depth.txt
 samtools bam2fq -@ 20 -1 SRR21031366_unmapped_R1.fastq -2 SRR21031366_unmapped_R2.fastq SRR21031366_unmapped_read_mate.bam
 
+samtools view -@ 128 -Sb  SRR20458000_dedup_trimmed_paired_aligned_hg38.sam >SRR21031366.bam
+samtools sort -@ 128 SRR21031366.bam -o SRR21031366_sorted.bam
+samtools view -@ 128 -b -f 12 SRR21031366_sorted.bam > SRR21031366_unmapped_read_mate.bam
+samtools index -@ 128 SRR21031366_sorted.bam
+samtools index -@ 128 SRR21031366_unmapped_read_mate.bam
+samtools flagstat SRR21031366_sorted.bam > SRR21031366_sorted_flagstat.txt
+samtools flagstat SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_flagstat.txt
+samtools idxstats SRR21031366_sorted.bam > SRR21031366_sorted_idxstats.txt
+samtools idxstats SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_idxstats.txt
+samtools view -@ 128 -c SRR21031366_sorted.bam >SRR21031366_sorted_count.txt
+samtools view -@ 128 -c SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_count.txt
+samtools depth -@ 128 SRR21031366_sorted.bam >SRR21031366_sorted_depth.txt
+samtools depth -@ 128 SRR21031366_unmapped_read_mate.bam >SRR21031366_unmapped_read_mate_depth.txt
+samtools bam2fq -@ 128 -1 SRR21031366_unmapped_R1.fastq -2 SRR21031366_unmapped_R2.fastq SRR21031366_unmapped_read_mate.bam
+
+
 #
 # Analysis steps
 # This is /u/VerbalCant's version, analyzing ancient0002, SRR21031366, "Victoria"
 #
 
-# Next step is to run kraken2 for a tax map
+# Next step is to run --pa2 for a tax map
 #   Build the database first
 # kraken2-build --build --standard --db kraken_standard --threads 10
 # kraken2-build --db kraken_standard --download-taxonomy --threads 10
@@ -130,7 +148,8 @@ kraken2 --db k2_nt --memory-mapping --paired SRR21031366_1.fastq.gz SRR21031366_
 
 # ancient003
 trimmomatic PE -phred33 -threads 128  SRR20755928_1_dedup.fastq.gz SRR20755928_2_dedup.fastq.gz   SRR20755928_1_paired.fastq.gz SRR20755928_1_unpaired.fastq.gz   SRR20755928_2_paired.fastq.gz SRR20755928_2_unpaired.fastq.gz   ILLUMINACLIP:TruSeq3-PE.fa:2:30:10   LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
-clumpify.sh -Xmx24g  in1=SRR20755928_1.fastq.gz in2=SRR20755928_2.fastq.gz out1=SRR20755928_1_dedup.fastq.gz out2=SRR20755928_2_dedup.fastq.gz dedupe threads=128
+dedupe.sh  in1=SRR20755928_R1_paired.fasta.gz in2=SRR20755928_R2.paired.fasta.gz out=SRR20755928_paired_deduped.fasta
+# clumpify.sh -Xmx24g  in1=SRR20755928_1.fastq.gz in2=SRR20755928_2.fastq.gz out1=SRR20755928_1_dedup.fastq.gz out2=SRR20755928_2_dedup.fastq.gz dedupe threads=128
 kraken2 --db /home/ubuntu/data/k2_nt  --paired SRR20755928_1.fastq.gz SRR20755928_2.fastq.gz  --use-names --threads 128 --output SRR20755928_kraken2_raw_reads_output.tab --report SRR20755928_kraken2_raw_reads_report.tab
 bowtie2 -p 128 --local --quiet -S SRR20755928_cleaned_deduped_aligned_hg38.sam -x human_genome -1 SRR20755928_1_paired.fastq.gz -2 SRR20755928_2_paired.fastq.gz human_genome \
   | samtools view -@ 128 -bS - \
@@ -150,10 +169,11 @@ samtools depth -@ 20 SRR20755928_unmapped_read_mate.bam >SRR20755928_unmapped_re
 ## megahit alignment
 ## shovil alignment
 ## binning
-## blastn contig samples
+rm -rf workflow && conda activate quast && ./binning_workflow.py   --num_samples 200000 -o workflow SRR21031366_megahit_contigs.fasta.gz SRR21031366_spades_contigs.fasta.gz --no-checkm  && conda activate checkm && ./binning_workflow.py   --num_samples 200000 -o workflow SRR21031366_megahit_contigs.fasta.gz SRR21031366_spades_contigs.fasta.gz --no-subset --no-maxbin
 ## CDS
+prodigal -i SRR21031366_spades_contigs.fasta.gz -o SRR21031366_spades_contigs.gbk -a SRR21031366_spades_contigs.faa -p meta
+## blastn contig samples
 ## MEME for motif finding
-## QUAST
 
 ##
 ## comparative analysis
