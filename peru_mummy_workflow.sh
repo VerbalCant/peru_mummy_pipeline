@@ -167,9 +167,13 @@ samtools depth -@ 20 SRR20755928_sorted.bam >SRR20755928_sorted_depth.txt
 samtools depth -@ 20 SRR20755928_unmapped_read_mate.bam >SRR20755928_unmapped_read_mate_depth.txt
 
 ## megahit alignment
-## shovil alignment
-## binning
-rm -rf workflow && conda activate quast && ./binning_workflow.py   --num_samples 200000 -o workflow SRR21031366_megahit_contigs.fasta.gz SRR21031366_spades_contigs.fasta.gz --no-checkm  && conda activate checkm && ./binning_workflow.py   --num_samples 200000 -o workflow SRR21031366_megahit_contigs.fasta.gz SRR21031366_spades_contigs.fasta.gz --no-subset --no-maxbin
+## spades(via shovill) alignment
+mkdir -p tmp && mkdir -p SRR21031366_shovill && shovill --cpus 20 --RAM 480 --force --tmpdir /home/ubuntu/data/tmp  --outdir SRR21031366_shovill --R1 SRR21031366_unmapped_R1.fastq.gz --R2 SRR21031366_unmapped_R2.fastq.gz
+
+## binning megahit
+rm -rf workflow && conda activate quast && ./binning_workflow.py   --num_samples 200000 -o workflow SRR21031366_megahit_contigs.fasta.gz --no-checkm  && conda activate checkm && ./binning_workflow.py   --num_samples 200000 -o workflow SRR21031366_megahit_contigs.fasta.gz --no-subset --no-maxbin
+## binning spades
+rm -rf workflow && conda activate quast && ./binning_workflow.py   --num_samples 200000 -o workflow SRR21031366_spades_contigs.fasta.gz --no-checkm  && conda activate checkm && ./binning_workflow.py   --num_samples 200000 -o workflow SRR21031366_spades_contigs.fasta.gz --no-subset --no-maxbin
 ## CDS
 prodigal -i SRR21031366_spades_contigs.fasta.gz -o SRR21031366_spades_contigs.gbk -a SRR21031366_spades_contigs.faa -p meta
 ## blastn contig samples
