@@ -32,4 +32,29 @@ awk 'BEGIN{
 # Median is about QUAL 69. a stddev would be ~151.
 # Let's try median.
 
-bcftools filter -i'%QUAL>69' SRR20755928_variants.vcf  -Oz -o SRR20755928_filtered_variants.vcf.gz
+# filter for quality > median
+bcftools filter --threads 12 -i'%QUAL>69' SRR20755928_variants.vcf  -Oz -o SRR20755928_filtered_variants.vcf.gz
+# filter to SNPs only
+bcftools view --threads 12 -v snps -O z -o SRR20755928_filtered_SNPs_only.vcf.gz SRR20755928_filtered_variants.vcf.gz
+bcftools index SRR20755928_filtered_SNPs_only.vcf.gz
+
+# whoops
+samtools view -h SRR20755928_sorted.bam | \
+awk -v OFS='\t' '{ if ($0 ~ /^@/) { print; } else { $12="RG:Z:Group1"; print; } }' | \
+samtools view -Sb - > SRR20755928_final.bam
+
+echo "SRR20755928" > sample_name.txt
+bcftools reheader -s sample_name.txt -o SRR20755928_filtered_SNPs_only_renamed.vcf.gz SRR20755928_filtered_SNPs_only.vcf.gz
+
+# phase it
+whatshap phase \
+  --indels \
+  --output SRR20755928_filtered_SNPs_only_renamed_phased.vcf.gz \
+  --reference ~/data/hg38.analysisSet.fasta \
+  --nthreads 12 \
+  --memory 60G \
+  SRR20755928_filtered_SNPs_only_renamed.vcf.gz \
+  SRR20755928_sorted_withRG.bam
+
+bcftools view -r chrM -Oz -o SRR20755928_mtDNA_variants.vcf.gz SRR20755928_filtered_SNPs_only_renamed_phased.vcf.gz
+bcftools view -r chrY -Oz -o SRR20755928_Y_variants.vcf.gz SRR20755928_filtered_SNPs_only_renamed_phased.vcf.gz
